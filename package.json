@@ -1,0 +1,66 @@
+{
+  "name": "open-in-typora",
+  "displayName": "Open in Typora",
+  "description": "Open markdown files in Typora from VSCode",
+  "version": "0.0.1",
+  "publisher": "pjgao",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pjgao/open-in-typora.git"
+  },
+  "keywords": [
+    "typora",
+    "markdown",
+    "open",
+    "wsl"
+  ],
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onLanguage:markdown"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "openInTypora.open",
+        "title": "Open in Typora",
+        "icon": "$(edit)"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "openInTypora.open",
+          "when": "resourceLangId == markdown",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Open in Typora",
+      "properties": {
+        "openInTypora.executablePath": {
+          "type": "string",
+          "default": "",
+          "description": "Absolute path to the Typora executable. Leave empty to auto-detect."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.3"
+  }
+}
