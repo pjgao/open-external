@@ -1,5 +1,13 @@
 # Open External
 
+<div align="center">
+  <img src="images/icon.png" width="128" height="128" alt="Open External Logo">
+  <br><br>
+  <em>Open any file with an external application — right from VSCode</em>
+</div>
+
+<br>
+
 A VSCode extension that lets you open any file with an external application. Configure rules to map file types to your preferred apps — [Typora](https://typora.io), Obsidian, Photoshop, or anything else.
 
 ## Features
@@ -14,7 +22,7 @@ A VSCode extension that lets you open any file with an external application. Con
 
 1. Open a file in VSCode.
 2. Either:
-   - Click the **T icon** in the editor title bar, **or**
+   - Click the **Open External** button in the editor title bar, **or**
    - Right-click a file in the explorer → **"Open in External App"**, **or**
    - Press `Ctrl+Shift+P` → type **"Open in External App"** → press Enter.
 3. The file opens in the matched external application.
