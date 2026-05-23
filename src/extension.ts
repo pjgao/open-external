@@ -81,6 +81,7 @@ function matchRule(filePath: string, languageId: string | undefined): Rule | und
 // ============ 应用路径检测 ============
 
 // 已知应用的默认安装路径映射
+// WSL 路径不在此处，由 detectAppPathWsl 单独处理
 const APP_PATHS: Record<string, Record<string, string[]>> = {
   Typora: {
     win32: [
@@ -107,11 +108,113 @@ const APP_PATHS: Record<string, Record<string, string[]>> = {
     darwin: ["/Applications/MarkText.app/Contents/MacOS/MarkText"],
     linux: ["/usr/bin/marktext", "/usr/local/bin/marktext", "/snap/bin/marktext"],
   },
+  WPS: {
+    win32: [
+      path.join(process.env.LOCALAPPDATA || "", "Kingsoft", "WPS Office", "ksolaunch.exe"),
+      path.join(process.env.ProgramFiles || "", "Kingsoft", "WPS Office", "ksolaunch.exe"),
+      path.join(process.env["ProgramFiles(x86)"] || "", "Kingsoft", "WPS Office", "ksolaunch.exe"),
+    ],
+    darwin: ["/Applications/wpsoffice.app/Contents/MacOS/wpsoffice"],
+    linux: ["/usr/bin/wps", "/usr/bin/et", "/usr/bin/wpp", "/opt/kingsoft/wps-office/office6/wps"],
+  },
+  Word: {
+    win32: [
+      path.join(process.env.ProgramFiles || "", "Microsoft Office", "root", "Office16", "WINWORD.EXE"),
+      path.join(process.env["ProgramFiles(x86)"] || "", "Microsoft Office", "root", "Office16", "WINWORD.EXE"),
+      path.join(process.env.ProgramFiles || "", "Microsoft Office", "Office16", "WINWORD.EXE"),
+      path.join(process.env["ProgramFiles(x86)"] || "", "Microsoft Office", "Office16", "WINWORD.EXE"),
+      path.join(process.env.ProgramFiles || "", "Microsoft Office", "root", "Office15", "WINWORD.EXE"),
+      path.join(process.env["ProgramFiles(x86)"] || "", "Microsoft Office", "Office15", "WINWORD.EXE"),
+    ],
+    darwin: ["/Applications/Microsoft Word.app/Contents/MacOS/Microsoft Word"],
+    linux: [],
+  },
+  PowerPoint: {
+    win32: [
+      path.join(process.env.ProgramFiles || "", "Microsoft Office", "root", "Office16", "POWERPNT.EXE"),
+      path.join(process.env["ProgramFiles(x86)"] || "", "Microsoft Office", "root", "Office16", "POWERPNT.EXE"),
+      path.join(process.env.ProgramFiles || "", "Microsoft Office", "Office16", "POWERPNT.EXE"),
+      path.join(process.env["ProgramFiles(x86)"] || "", "Microsoft Office", "Office16", "POWERPNT.EXE"),
+      path.join(process.env.ProgramFiles || "", "Microsoft Office", "root", "Office15", "POWERPNT.EXE"),
+      path.join(process.env["ProgramFiles(x86)"] || "", "Microsoft Office", "Office15", "POWERPNT.EXE"),
+    ],
+    darwin: ["/Applications/Microsoft PowerPoint.app/Contents/MacOS/Microsoft PowerPoint"],
+    linux: [],
+  },
+  Excel: {
+    win32: [
+      path.join(process.env.ProgramFiles || "", "Microsoft Office", "root", "Office16", "EXCEL.EXE"),
+      path.join(process.env["ProgramFiles(x86)"] || "", "Microsoft Office", "root", "Office16", "EXCEL.EXE"),
+      path.join(process.env.ProgramFiles || "", "Microsoft Office", "Office16", "EXCEL.EXE"),
+      path.join(process.env["ProgramFiles(x86)"] || "", "Microsoft Office", "Office16", "EXCEL.EXE"),
+      path.join(process.env.ProgramFiles || "", "Microsoft Office", "root", "Office15", "EXCEL.EXE"),
+      path.join(process.env["ProgramFiles(x86)"] || "", "Microsoft Office", "Office15", "EXCEL.EXE"),
+    ],
+    darwin: ["/Applications/Microsoft Excel.app/Contents/MacOS/Microsoft Excel"],
+    linux: [],
+  },
+  Drawio: {
+    win32: [
+      path.join(process.env.LOCALAPPDATA || "", "Programs", "draw.io", "draw.io.exe"),
+      path.join(process.env.ProgramFiles || "", "draw.io", "draw.io.exe"),
+      path.join(process.env["ProgramFiles(x86)"] || "", "draw.io", "draw.io.exe"),
+    ],
+    darwin: ["/Applications/draw.io.app/Contents/MacOS/draw.io"],
+    linux: ["/usr/bin/drawio", "/opt/draw.io/drawio", "/snap/bin/drawio"],
+  },
+  XMind: {
+    win32: [
+      path.join(process.env.LOCALAPPDATA || "", "Programs", "XMind", "XMind.exe"),
+      path.join(process.env.ProgramFiles || "", "XMind", "XMind.exe"),
+    ],
+    darwin: ["/Applications/XMind.app/Contents/MacOS/XMind"],
+    linux: ["/usr/bin/xmind", "/opt/XMind/xmind", "/snap/bin/xmind"],
+  },
+  Photoshop: {
+    win32: [
+      path.join(process.env.ProgramFiles || "", "Adobe", "Adobe Photoshop 2024", "Photoshop.exe"),
+      path.join(process.env.ProgramFiles || "", "Adobe", "Adobe Photoshop 2023", "Photoshop.exe"),
+      path.join(process.env.ProgramFiles || "", "Adobe", "Adobe Photoshop CC 2019", "Photoshop.exe"),
+    ],
+    darwin: ["/Applications/Adobe Photoshop 2024/Adobe Photoshop 2024.app/Contents/MacOS/Adobe Photoshop 2024"],
+    linux: [],
+  },
+  Illustrator: {
+    win32: [
+      path.join(process.env.ProgramFiles || "", "Adobe", "Adobe Illustrator 2024", "Support Files", "Contents", "Windows", "Illustrator.exe"),
+      path.join(process.env.ProgramFiles || "", "Adobe", "Adobe Illustrator 2023", "Support Files", "Contents", "Windows", "Illustrator.exe"),
+    ],
+    darwin: ["/Applications/Adobe Illustrator 2024/Adobe Illustrator 2024.app/Contents/MacOS/Adobe Illustrator 2024"],
+    linux: [],
+  },
+  VLC: {
+    win32: [
+      path.join(process.env.ProgramFiles || "", "VideoLAN", "VLC", "vlc.exe"),
+      path.join(process.env["ProgramFiles(x86)"] || "", "VideoLAN", "VLC", "vlc.exe"),
+    ],
+    darwin: ["/Applications/VLC.app/Contents/MacOS/VLC"],
+    linux: ["/usr/bin/vlc", "/usr/local/bin/vlc", "/snap/bin/vlc"],
+  },
+  Preview: {
+    darwin: ["/System/Applications/Preview.app/Contents/MacOS/Preview"],
+  },
 };
 
 // WSL 场景下检测 Windows 上的应用
+// 优先从 APP_PATHS 中获取候选路径（转换为 /mnt 路径），再补充通用路径
 function detectAppPathWsl(appName: string): string | undefined {
   const candidates: string[] = [];
+
+  // 从 APP_PATHS 中获取该应用的 win32 路径，将 Windows 盘符路径转为 WSL /mnt 路径
+  const known = APP_PATHS[appName];
+  if (known && known.win32) {
+    for (const winPath of known.win32) {
+      const mntPath = winPath.replace(/^([A-Za-z]):/, (_, drive) => `/mnt/${drive.toLowerCase()}`).replace(/\\/g, "/");
+      candidates.push(mntPath);
+    }
+  }
+
+  // 补充通用路径：/mnt/c/Users/<user>/AppData/Local/Programs/<app>/<app>.exe
   const windir = process.env.WINDIR;
   if (windir) {
     const driveLetter = windir.charAt(0).toLowerCase();
@@ -128,10 +231,12 @@ function detectAppPathWsl(appName: string): string | undefined {
       // ignore
     }
   }
+
   for (const drive of ["c", "d"]) {
     candidates.push(`/mnt/${drive}/Program Files/${appName}/${appName}.exe`);
     candidates.push(`/mnt/${drive}/Program Files (x86)/${appName}/${appName}.exe`);
   }
+
   for (const candidate of candidates) {
     try {
       if (fs.existsSync(candidate)) {

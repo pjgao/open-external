@@ -60,10 +60,18 @@
         "openExternal.rules": {
           "type": "array",
           "default": [
-            {
-              "language": "markdown",
-              "app": "Typora"
-            }
+            { "language": "markdown", "app": "Typora" },
+            { "extension": ".drawio", "app": "Drawio" },
+            { "extension": ".dio", "app": "Drawio" },
+            { "extension": ".pptx", "app": "PowerPoint" },
+            { "extension": ".ppt", "app": "PowerPoint" },
+            { "extension": ".docx", "app": "Word" },
+            { "extension": ".doc", "app": "Word" },
+            { "extension": ".xlsx", "app": "Excel" },
+            { "extension": ".xls", "app": "Excel" },
+            { "extension": ".xmind", "app": "XMind" },
+            { "extension": ".psd", "app": "Photoshop" },
+            { "extension": ".ai", "app": "Illustrator" }
           ],
           "description": "Rules mapping file types to external applications. Each rule can use 'language' (VSCode language id), 'extension' (e.g. '.psd'), or 'pattern' (glob). 'app' is the application name or absolute path.",
           "items": {

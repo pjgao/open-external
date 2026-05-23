@@ -61,13 +61,38 @@ Configure rules in `settings.json`:
 
 The following app names are automatically resolved to their default install paths:
 
-| App       | Windows | macOS | Linux | WSL |
-|-----------|---------|-------|-------|-----|
-| Typora    | ✓ | ✓ | ✓ | ✓ |
-| Obsidian  | ✓ | ✓ | ✓ | ✓ |
-| MarkText  | ✓ | ✓ | ✓ | ✓ |
+| App          | Windows | macOS | Linux | WSL |
+|--------------|---------|-------|-------|-----|
+| Typora       | ✓ | ✓ | ✓ | ✓ |
+| Obsidian     | ✓ | ✓ | ✓ | ✓ |
+| MarkText     | ✓ | ✓ | ✓ | ✓ |
+| WPS          | ✓ | ✓ | ✓ | ✓ |
+| Word         | ✓ | ✓ | — | ✓ |
+| PowerPoint   | ✓ | ✓ | — | ✓ |
+| Excel        | ✓ | ✓ | — | ✓ |
+| Drawio       | ✓ | ✓ | ✓ | ✓ |
+| XMind        | ✓ | ✓ | ✓ | ✓ |
+| Photoshop    | ✓ | ✓ | — | ✓ |
+| Illustrator  | ✓ | ✓ | — | ✓ |
+| VLC          | ✓ | ✓ | ✓ | ✓ |
+| Preview      | — | ✓ | — | — |
 
 For apps not in this list, use the absolute path to the executable as the `app` value.
+
+### Default rules
+
+The extension ships with these default rules (you can override or extend them in settings):
+
+| File type        | Extension / Language | App          |
+|------------------|----------------------|--------------|
+| Markdown         | `language: markdown` | Typora       |
+| Draw.io          | `.drawio`, `.dio`    | Drawio       |
+| PowerPoint       | `.pptx`, `.ppt`      | PowerPoint   |
+| Word             | `.docx`, `.doc`      | Word         |
+| Excel            | `.xlsx`, `.xls`      | Excel        |
+| XMind            | `.xmind`             | XMind        |
+| Photoshop        | `.psd`               | Photoshop    |
+| Illustrator      | `.ai`                | Illustrator  |
 
 ## Limitations
 
