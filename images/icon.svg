@@ -1,4 +1,35 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
-  <rect width="128" height="128" rx="16" fill="#4A90D9"/>
-  <text x="64" y="92" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="96" font-weight="bold" fill="white">T</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="docGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#5BA3F5"/>
+      <stop offset="100%" stop-color="#3A7BD5"/>
+    </linearGradient>
+    <linearGradient id="arrowGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FF9800"/>
+      <stop offset="100%" stop-color="#FFC107"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="2" dy="3" stdDeviation="4" flood-color="#00000033"/>
+    </filter>
+  </defs>
+
+  <!-- Document -->
+  <g filter="url(#shadow)">
+    <path d="M16 10 L16 118 Q16 122 20 122 L78 122 Q82 122 82 118 L82 34 L58 10 L20 10 Q16 10 16 14 Z" fill="url(#docGrad)"/>
+    <path d="M58 10 L58 30 Q58 34 62 34 L82 34 Z" fill="#2E6BC4" opacity="0.6"/>
+  </g>
+
+  <!-- Document lines -->
+  <rect x="28" y="48" width="42" height="4" rx="2" fill="white" opacity="0.5"/>
+  <rect x="28" y="60" width="42" height="4" rx="2" fill="white" opacity="0.5"/>
+  <rect x="28" y="72" width="30" height="4" rx="2" fill="white" opacity="0.5"/>
+
+  <!-- Arrow shaft -->
+  <line x1="64" y1="78" x2="112" y2="30" stroke="url(#arrowGrad)" stroke-width="9" stroke-linecap="round"/>
+
+  <!-- Arrow head -->
+  <polygon points="118,18 100,22 110,40" fill="url(#arrowGrad)"/>
+
+  <!-- Arrow accent line (inner highlight) -->
+  <line x1="64" y1="78" x2="108" y2="34" stroke="white" stroke-width="2" stroke-linecap="round" opacity="0.3"/>
 </svg>
