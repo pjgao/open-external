@@ -3,7 +3,6 @@ import * as path from "path";
 import * as fs from "fs";
 import * as os from "os";
 import { execFile, exec } from "child_process";
-import { minimatch } from "minimatch";
 
 // ============ WSL 检测 ============
 
@@ -43,6 +42,16 @@ function wslToWindowsPath(wslPath: string): Promise<string> {
   });
 }
 
+// 简单的 glob 匹配：支持 * 和 ? 通配符，大小写不敏感
+function simpleGlob(fileName: string, pattern: string): boolean {
+  const regexStr = pattern
+    .replace(/[.+^${}()|[\]\\]/g, "\\$&")
+    .replace(/\*/g, ".*")
+    .replace(/\?/g, ".");
+  const regex = new RegExp(`^${regexStr}$`, "i");
+  return regex.test(fileName);
+}
+
 // ============ 规则匹配 ============
 
 interface Rule {
@@ -52,10 +61,30 @@ interface Rule {
   app: string;
 }
 
-// 获取用户配置的规则列表
+// 插件内置的默认规则，当用户未配置任何规则时使用
+const DEFAULT_RULES: Rule[] = [
+  { language: "markdown", app: "Typora" },
+  { extension: ".drawio", app: "Drawio" },
+  { extension: ".dio", app: "Drawio" },
+  { extension: ".pptx", app: "PowerPoint" },
+  { extension: ".ppt", app: "PowerPoint" },
+  { extension: ".docx", app: "Word" },
+  { extension: ".doc", app: "Word" },
+  { extension: ".xlsx", app: "Excel" },
+  { extension: ".xls", app: "Excel" },
+  { extension: ".xmind", app: "XMind" },
+  { extension: ".psd", app: "Photoshop" },
+  { extension: ".ai", app: "Illustrator" },
+];
+
+// 获取用户配置的规则列表，未配置则使用默认规则
 function getRules(): Rule[] {
   const config = vscode.workspace.getConfiguration("openExternal");
-  return config.get<Rule[]>("rules", []);
+  const rules = config.get<Rule[]>("rules", []);
+  if (rules && rules.length > 0) {
+    return rules;
+  }
+  return DEFAULT_RULES;
 }
 
 // 根据文件路径和语言 ID 匹配规则，返回第一条匹配的规则
@@ -71,7 +100,7 @@ function matchRule(filePath: string, languageId: string | undefined): Rule | und
     if (rule.extension && ext === rule.extension.toLowerCase()) {
       return rule;
     }
-    if (rule.pattern && minimatch(fileName, rule.pattern, { nocase: true })) {
+    if (rule.pattern && simpleGlob(fileName, rule.pattern)) {
       return rule;
     }
   }
@@ -79,6 +108,16 @@ function matchRule(filePath: string, languageId: string | undefined): Rule | und
 }
 
 // ============ 应用路径检测 ============
+
+// WSL 场景下，各应用在 Windows 上的可执行文件名
+// 部分应用的 exe 名与 app 名不一致（如 WPS 对应 ksolaunch.exe / wps.exe）
+const WSL_EXE_NAMES: Record<string, string[]> = {
+  WPS: ["ksolaunch.exe", "wps.exe", "et.exe", "wpp.exe"],
+  Word: ["WINWORD.EXE"],
+  PowerPoint: ["POWERPNT.EXE"],
+  Excel: ["EXCEL.EXE"],
+  Drawio: ["draw.io.exe"],
+};
 
 // 已知应用的默认安装路径映射
 // WSL 路径不在此处，由 detectAppPathWsl 单独处理
@@ -200,10 +239,37 @@ const APP_PATHS: Record<string, Record<string, string[]>> = {
   },
 };
 
+// 在指定父目录下递归搜索可执行文件（最多2层，处理版本号子目录）
+function findExeInDir(parentDir: string, exeName: string, maxDepth: number = 2): string | undefined {
+  if (!fs.existsSync(parentDir)) {
+    return undefined;
+  }
+  try {
+    const entries = fs.readdirSync(parentDir, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(parentDir, entry.name);
+      if (entry.isFile() && entry.name.toLowerCase() === exeName.toLowerCase()) {
+        return fullPath;
+      }
+      if (entry.isDirectory() && maxDepth > 0) {
+        const found = findExeInDir(fullPath, exeName, maxDepth - 1);
+        if (found) {
+          return found;
+        }
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return undefined;
+}
+
 // WSL 场景下检测 Windows 上的应用
 // 优先从 APP_PATHS 中获取候选路径（转换为 /mnt 路径），再补充通用路径
+// 对包含版本号子目录的应用（如 WPS），使用 findExeInDir 动态扫描
 function detectAppPathWsl(appName: string): string | undefined {
   const candidates: string[] = [];
+  const searchDirs: string[] = [];
 
   // 从 APP_PATHS 中获取该应用的 win32 路径，将 Windows 盘符路径转为 WSL /mnt 路径
   const known = APP_PATHS[appName];
@@ -214,7 +280,7 @@ function detectAppPathWsl(appName: string): string | undefined {
     }
   }
 
-  // 补充通用路径：/mnt/c/Users/<user>/AppData/Local/Programs/<app>/<app>.exe
+  // 补充通用路径和搜索目录
   const windir = process.env.WINDIR;
   if (windir) {
     const driveLetter = windir.charAt(0).toLowerCase();
@@ -237,6 +303,7 @@ function detectAppPathWsl(appName: string): string | undefined {
     candidates.push(`/mnt/${drive}/Program Files (x86)/${appName}/${appName}.exe`);
   }
 
+  // 先尝试精确路径
   for (const candidate of candidates) {
     try {
       if (fs.existsSync(candidate)) {
@@ -246,10 +313,29 @@ function detectAppPathWsl(appName: string): string | undefined {
       // ignore
     }
   }
+
+  // 精确路径找不到时，尝试在父目录中动态搜索可执行文件
+  const exeNames = WSL_EXE_NAMES[appName] || [`${appName.toLowerCase()}.exe`];
+  const parentDirs = new Set<string>();
+  for (const candidate of candidates) {
+    parentDirs.add(path.dirname(candidate));
+    // 也加入上一级目录（如 Kingsoft/WPS Office 的父目录 Kingsoft）
+    parentDirs.add(path.dirname(path.dirname(candidate)));
+  }
+
+  for (const dir of parentDirs) {
+    for (const exeName of exeNames) {
+      const found = findExeInDir(dir, exeName);
+      if (found) {
+        return found;
+      }
+    }
+  }
+
   return undefined;
 }
 
-// 在已知映射中查找应用路径，找不到则尝试将 app 当作可执行文件路径
+// 在已知映射中查找应用路径，找不到则在父目录动态搜索，最后尝试绝对路径
 function resolveAppPath(appName: string): string | undefined {
   if (isWsl()) {
     return detectAppPathWsl(appName);
@@ -258,6 +344,7 @@ function resolveAppPath(appName: string): string | undefined {
   const platform = os.platform() as string;
   const known = APP_PATHS[appName];
   if (known && known[platform]) {
+    // 先尝试精确路径
     for (const candidate of known[platform]) {
       try {
         if (fs.existsSync(candidate)) {
@@ -265,6 +352,21 @@ function resolveAppPath(appName: string): string | undefined {
         }
       } catch {
         // ignore
+      }
+    }
+    // 精确路径未找到，在父目录动态搜索可执行文件
+    const exeNames = WSL_EXE_NAMES[appName] || [`${appName.toLowerCase()}.exe`];
+    const parentDirs = new Set<string>();
+    for (const candidate of known[platform]) {
+      parentDirs.add(path.dirname(candidate));
+      parentDirs.add(path.dirname(path.dirname(candidate)));
+    }
+    for (const dir of parentDirs) {
+      for (const exeName of exeNames) {
+        const found = findExeInDir(dir, exeName);
+        if (found) {
+          return found;
+        }
       }
     }
   }
