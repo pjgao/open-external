@@ -24,13 +24,17 @@
   "activationEvents": [
     "onLanguage:markdown"
   ],
+  "icon": "images/icon.png",
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
       {
         "command": "openInTypora.open",
         "title": "Open in Typora",
-        "icon": "$(edit)"
+        "icon": {
+          "light": "images/icon-light.svg",
+          "dark": "images/icon-dark.svg"
+        }
       }
     ],
     "menus": {
