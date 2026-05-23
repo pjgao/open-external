@@ -24,12 +24,16 @@
   <rect x="28" y="60" width="42" height="4" rx="2" fill="white" opacity="0.5"/>
   <rect x="28" y="72" width="30" height="4" rx="2" fill="white" opacity="0.5"/>
 
-  <!-- Arrow shaft -->
-  <line x1="64" y1="78" x2="112" y2="30" stroke="url(#arrowGrad)" stroke-width="9" stroke-linecap="round"/>
+  <!-- Arrow shaft: 45-degree line, endpoint at arrowhead base center -->
+  <line x1="64" y1="78" x2="108" y2="34" stroke="url(#arrowGrad)" stroke-width="9" stroke-linecap="round"/>
 
-  <!-- Arrow head -->
-  <polygon points="118,18 100,22 110,40" fill="url(#arrowGrad)"/>
+  <!-- Arrow head: triangle centered on shaft endpoint (108,34), pointing 45-deg upper-right -->
+  <!-- Direction: (0.707, -0.707), Perp: (0.707, 0.707) -->
+  <!-- Tip = E + 16*d = (119, 23) -->
+  <!-- Left = E + 8*n = (114, 40) -->
+  <!-- Right = E - 8*n = (102, 28) -->
+  <polygon points="119,23 114,40 102,28" fill="url(#arrowGrad)"/>
 
-  <!-- Arrow accent line (inner highlight) -->
-  <line x1="64" y1="78" x2="108" y2="34" stroke="white" stroke-width="2" stroke-linecap="round" opacity="0.3"/>
+  <!-- Arrow inner highlight -->
+  <line x1="64" y1="78" x2="106" y2="36" stroke="white" stroke-width="2" stroke-linecap="round" opacity="0.25"/>
 </svg>
