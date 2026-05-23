@@ -1,8 +1,8 @@
 {
-  "name": "open-in-typora",
-  "displayName": "Open in Typora",
-  "description": "Open markdown files in Typora from VSCode",
-  "version": "0.0.1",
+  "name": "open-external",
+  "displayName": "Open External",
+  "description": "Open any file with an external application from VSCode. Configure rules to map file types to apps.",
+  "version": "0.1.0",
   "publisher": "pjgao",
   "license": "MIT",
   "repository": {
@@ -10,9 +10,10 @@
     "url": "https://github.com/pjgao/open-in-typora.git"
   },
   "keywords": [
+    "external",
+    "open",
     "typora",
     "markdown",
-    "open",
     "wsl"
   ],
   "engines": {
@@ -22,15 +23,15 @@
     "Other"
   ],
   "activationEvents": [
-    "onLanguage:markdown"
+    "onStartupFinished"
   ],
   "icon": "images/icon.png",
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "openInTypora.open",
-        "title": "Open in Typora",
+        "command": "openExternal.open",
+        "title": "Open in External App",
         "icon": {
           "light": "images/icon-light.svg",
           "dark": "images/icon-dark.svg"
@@ -40,19 +41,60 @@
     "menus": {
       "editor/title": [
         {
-          "command": "openInTypora.open",
-          "when": "resourceLangId == markdown",
+          "command": "openExternal.open",
+          "when": "config.openExternal.showEditorTitleButton",
+          "group": "navigation"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "openExternal.open",
+          "when": "!explorerResourceIsFolder",
           "group": "navigation"
         }
       ]
     },
     "configuration": {
-      "title": "Open in Typora",
+      "title": "Open External",
       "properties": {
-        "openInTypora.executablePath": {
-          "type": "string",
-          "default": "",
-          "description": "Absolute path to the Typora executable. Leave empty to auto-detect."
+        "openExternal.rules": {
+          "type": "array",
+          "default": [
+            {
+              "language": "markdown",
+              "app": "Typora"
+            }
+          ],
+          "description": "Rules mapping file types to external applications. Each rule can use 'language' (VSCode language id), 'extension' (e.g. '.psd'), or 'pattern' (glob). 'app' is the application name or absolute path.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "language": {
+                "type": "string",
+                "description": "VSCode language identifier, e.g. 'markdown', 'python'"
+              },
+              "extension": {
+                "type": "string",
+                "description": "File extension, e.g. '.psd', '.ipynb'"
+              },
+              "pattern": {
+                "type": "string",
+                "description": "Glob pattern, e.g. '**/*.design.ts'"
+              },
+              "app": {
+                "type": "string",
+                "description": "Application name (e.g. 'Typora', 'Photoshop') or absolute path to executable"
+              }
+            },
+            "required": [
+              "app"
+            ]
+          }
+        },
+        "openExternal.showEditorTitleButton": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the 'Open in External App' button in the editor title bar when a matching rule is found."
         }
       }
     }
@@ -63,8 +105,12 @@
     "watch": "tsc -watch -p ./"
   },
   "devDependencies": {
-    "@types/vscode": "^1.85.0",
+    "@types/minimatch": "^5.1.2",
     "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
     "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "minimatch": "^10.2.5"
   }
 }

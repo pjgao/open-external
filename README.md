@@ -1,42 +1,69 @@
-# Open in Typora
+# Open External
 
-A VSCode extension that lets you open Markdown files in [Typora](https://typora.io) directly from the editor.
+A VSCode extension that lets you open any file with an external application. Configure rules to map file types to your preferred apps — [Typora](https://typora.io), Obsidian, Photoshop, or anything else.
 
 ## Features
 
-- **Command Palette**: Press `Ctrl+Shift+P` and run **"Open in Typora"** to open the current `.md` file in Typora.
-- **Editor Title Button**: A quick-access button appears in the top-right corner of the editor when a Markdown file is open.
-- **Auto-detect Typora**: Automatically finds the Typora executable on Windows, macOS, and Linux (including WSL).
-- **WSL Support**: Works seamlessly when VSCode is connected to WSL — converts paths and launches Windows Typora via `cmd.exe`.
+- **Flexible rules**: Map files by VSCode language ID, file extension, or glob pattern to any external app.
+- **Multiple entry points**: Command Palette, editor title bar button, and explorer context menu.
+- **Auto-detect apps**: Automatically finds known apps (Typora, Obsidian, MarkText) on Windows, macOS, Linux, and WSL.
+- **WSL support**: Seamlessly converts paths and launches Windows apps via `cmd.exe`.
+- **Fallback to path**: If an app name isn't recognized, use an absolute path as the `app` value.
 
 ## Usage
 
-1. Open a `.md` file in VSCode.
+1. Open a file in VSCode.
 2. Either:
-   - Click the **edit icon** in the editor title bar, **or**
-   - Press `Ctrl+Shift+P` → type **"Open in Typora"** → press Enter.
-3. The file opens in Typora.
+   - Click the **T icon** in the editor title bar, **or**
+   - Right-click a file in the explorer → **"Open in External App"**, **or**
+   - Press `Ctrl+Shift+P` → type **"Open in External App"** → press Enter.
+3. The file opens in the matched external application.
 
 ## Configuration
 
-If Typora is not found automatically, set the executable path manually:
+Configure rules in `settings.json`:
+
+```json
+"openExternal.rules": [
+  { "language": "markdown", "app": "Typora" },
+  { "extension": ".psd", "app": "/usr/bin/gimp" },
+  { "pattern": "*.design.ts", "app": "Figma" },
+  { "language": "python", "app": "/Applications/PyCharm.app/Contents/MacOS/pycharm" }
+]
+```
+
+### Rule properties
+
+| Property     | Description                                         | Required |
+|--------------|-----------------------------------------------------|----------|
+| `language`   | VSCode language identifier (e.g. `markdown`)        | No*      |
+| `extension`  | File extension (e.g. `.psd`)                        | No*      |
+| `pattern`    | Glob pattern for filename matching (e.g. `*.design.ts`) | No*  |
+| `app`        | App name (e.g. `Typora`) or absolute path to executable | Yes   |
+
+\* At least one of `language`, `extension`, or `pattern` should be specified. Rules are matched in order; the first match wins.
+
+### Other settings
 
 | Setting | Description | Default |
 |---------|-------------|---------|
-| `openInTypora.executablePath` | Absolute path to the Typora executable | `""` (auto-detect) |
+| `openExternal.showEditorTitleButton` | Show the button in the editor title bar | `true` |
 
-### Auto-detect paths
+### Known app auto-detect
 
-| Platform | Search locations |
-|----------|-----------------|
-| Windows | `%LOCALAPPDATA%\Programs\Typora\Typora.exe`, `%ProgramFiles%\Typora\Typora.exe` |
-| macOS | `/Applications/Typora.app/Contents/MacOS/Typora` |
-| Linux | `/usr/bin/typora`, `/usr/local/bin/typora`, `/snap/bin/typora` |
-| WSL | `/mnt/c/Users/<user>/AppData/Local/Programs/Typora/Typora.exe`, `/mnt/c/Program Files/Typora/Typora.exe` |
+The following app names are automatically resolved to their default install paths:
+
+| App       | Windows | macOS | Linux | WSL |
+|-----------|---------|-------|-------|-----|
+| Typora    | ✓ | ✓ | ✓ | ✓ |
+| Obsidian  | ✓ | ✓ | ✓ | ✓ |
+| MarkText  | ✓ | ✓ | ✓ | ✓ |
+
+For apps not in this list, use the absolute path to the executable as the `app` value.
 
 ## Limitations
 
-- Remote containers and SSH sessions are **not supported** (Typora is a local GUI application).
+- Remote containers and SSH sessions are **not supported** (external apps are local GUI applications).
 - WSL is fully supported.
 
 ## Development

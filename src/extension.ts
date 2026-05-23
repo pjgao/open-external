@@ -3,11 +3,11 @@ import * as path from "path";
 import * as fs from "fs";
 import * as os from "os";
 import { execFile, exec } from "child_process";
+import { minimatch } from "minimatch";
 
-/**
- * 检测当前是否运行在 WSL 环境中
- * 通过内核版本号中是否包含 "microsoft" 或 "wsl" 来判断
- */
+// ============ WSL 检测 ============
+
+// 通过内核版本号检测 WSL 环境
 function isWsl(): boolean {
   if (os.platform() !== "linux") {
     return false;
@@ -20,10 +20,7 @@ function isWsl(): boolean {
   }
 }
 
-/**
- * 检测当前是否为远程容器或 SSH 连接（非 WSL）
- * WSL 虽然也是远程连接，但可以访问 Windows 文件系统，所以单独处理
- */
+// 检测是否为远程容器或 SSH（非 WSL），这些场景不支持外部 GUI 应用
 function isRemoteContainer(): boolean {
   if (!vscode.env.remoteName) {
     return false;
@@ -31,112 +28,9 @@ function isRemoteContainer(): boolean {
   return vscode.env.remoteName !== "wsl";
 }
 
-/**
- * 从 HOME 路径中提取 Windows 用户名
- * 例如 /mnt/c/Users/gaopengju → gaopengju
- */
-function getWindowsUsername(): string | undefined {
-  const user = process.env.USER || process.env.LOGNAME;
-  const home = process.env.HOME || "";
-  const match = home.match(/\/mnt\/[c-z]\/Users\/([^/]+)/);
-  if (match) {
-    return match[1];
-  }
-  return user;
-}
+// ============ 路径转换 ============
 
-// 自动检测 Typora 可执行文件路径
-// WSL: 扫描 Windows 用户目录和 Program Files
-// Windows: 使用 LOCALAPPDATA、ProgramFiles 环境变量
-// macOS: 检测 Applications 目录
-// Linux: 检测标准可执行文件路径
-function detectTyporaPath(): string | undefined {
-  if (isWsl()) {
-    const candidates: string[] = [];
-
-    // 通过 WINDIR 环境变量确定 Windows 系统盘符，扫描所有用户的 AppData 目录
-    const windir = process.env.WINDIR;
-    if (windir) {
-      const driveLetter = windir.charAt(0).toLowerCase();
-      const winUsersBase = `/mnt/${driveLetter}/Users`;
-      try {
-        const users = fs.readdirSync(winUsersBase);
-        for (const u of users) {
-          if (u === "Public" || u === "Default" || u === "Default User" || u === "All Users" || u.startsWith(".")) {
-            continue;
-          }
-          candidates.push(path.join(winUsersBase, u, "AppData", "Local", "Programs", "Typora", "Typora.exe"));
-        }
-      } catch {
-        // ignore
-      }
-    }
-
-    // 补充 Program Files 路径
-    for (const drive of ["c", "d"]) {
-      candidates.push(`/mnt/${drive}/Program Files/Typora/Typora.exe`);
-      candidates.push(`/mnt/${drive}/Program Files (x86)/Typora/Typora.exe`);
-    }
-
-    for (const candidate of candidates) {
-      try {
-        if (fs.existsSync(candidate)) {
-          return candidate;
-        }
-      } catch {
-        // ignore
-      }
-    }
-    return undefined;
-  }
-
-  const platform = os.platform();
-  const candidates: string[] = [];
-
-  if (platform === "win32") {
-    const localAppData = process.env.LOCALAPPDATA || "";
-    const programFiles = process.env.ProgramFiles || "";
-    const programFilesX86 = process.env["ProgramFiles(x86)"] || "";
-    candidates.push(
-      path.join(localAppData, "Programs", "Typora", "Typora.exe"),
-      path.join(programFiles, "Typora", "Typora.exe"),
-      path.join(programFilesX86, "Typora", "Typora.exe")
-    );
-  } else if (platform === "darwin") {
-    candidates.push("/Applications/Typora.app/Contents/MacOS/Typora");
-  } else {
-    candidates.push("/usr/bin/typora", "/usr/local/bin/typora", "/snap/bin/typora");
-  }
-
-  for (const candidate of candidates) {
-    try {
-      if (fs.existsSync(candidate)) {
-        return candidate;
-      }
-    } catch {
-      // ignore
-    }
-  }
-
-  return undefined;
-}
-
-/**
- * 获取 Typora 路径：优先使用用户配置，未配置则自动检测
- */
-function getTyporaPath(): string | undefined {
-  const config = vscode.workspace.getConfiguration("openInTypora");
-  const configured = config.get<string>("executablePath", "");
-  if (configured) {
-    return configured;
-  }
-  return detectTyporaPath();
-}
-
-/**
- * 将 WSL 中的 Linux 路径转换为 Windows 路径
- * 使用 wslpath -w 命令，例如 /home/user/doc.md → \\wsl$\Ubuntu\home\user\doc.md
- */
+// 将 WSL 中的 Linux 路径转换为 Windows 路径
 function wslToWindowsPath(wslPath: string): Promise<string> {
   return new Promise((resolve, reject) => {
     exec(`wslpath -w "${wslPath}"`, (error, stdout) => {
@@ -149,44 +43,173 @@ function wslToWindowsPath(wslPath: string): Promise<string> {
   });
 }
 
-/**
- * 使用 Typora 打开指定的 Markdown 文件
- * 
- * 处理三种场景：
- * 1. 远程容器/SSH：提示不支持
- * 2. WSL：路径转换后通过 cmd.exe 调用 Windows 上的 Typora
- * 3. 本地：直接 execFile 启动 Typora
- */
-async function openInTypora(filePath: string): Promise<void> {
+// ============ 规则匹配 ============
+
+interface Rule {
+  language?: string;
+  extension?: string;
+  pattern?: string;
+  app: string;
+}
+
+// 获取用户配置的规则列表
+function getRules(): Rule[] {
+  const config = vscode.workspace.getConfiguration("openExternal");
+  return config.get<Rule[]>("rules", []);
+}
+
+// 根据文件路径和语言 ID 匹配规则，返回第一条匹配的规则
+function matchRule(filePath: string, languageId: string | undefined): Rule | undefined {
+  const rules = getRules();
+  const fileName = path.basename(filePath);
+  const ext = path.extname(filePath).toLowerCase();
+
+  for (const rule of rules) {
+    if (rule.language && languageId && rule.language === languageId) {
+      return rule;
+    }
+    if (rule.extension && ext === rule.extension.toLowerCase()) {
+      return rule;
+    }
+    if (rule.pattern && minimatch(fileName, rule.pattern, { nocase: true })) {
+      return rule;
+    }
+  }
+  return undefined;
+}
+
+// ============ 应用路径检测 ============
+
+// 已知应用的默认安装路径映射
+const APP_PATHS: Record<string, Record<string, string[]>> = {
+  Typora: {
+    win32: [
+      path.join(process.env.LOCALAPPDATA || "", "Programs", "Typora", "Typora.exe"),
+      path.join(process.env.ProgramFiles || "", "Typora", "Typora.exe"),
+      path.join(process.env["ProgramFiles(x86)"] || "", "Typora", "Typora.exe"),
+    ],
+    darwin: ["/Applications/Typora.app/Contents/MacOS/Typora"],
+    linux: ["/usr/bin/typora", "/usr/local/bin/typora", "/snap/bin/typora"],
+  },
+  Obsidian: {
+    win32: [
+      path.join(process.env.LOCALAPPDATA || "", "Programs", "Obsidian", "Obsidian.exe"),
+      path.join(process.env.ProgramFiles || "", "Obsidian", "Obsidian.exe"),
+    ],
+    darwin: ["/Applications/Obsidian.app/Contents/MacOS/Obsidian"],
+    linux: ["/usr/bin/obsidian", "/snap/bin/obsidian", "/usr/local/bin/obsidian"],
+  },
+  MarkText: {
+    win32: [
+      path.join(process.env.LOCALAPPDATA || "", "Programs", "MarkText", "MarkText.exe"),
+      path.join(process.env.ProgramFiles || "", "MarkText", "MarkText.exe"),
+    ],
+    darwin: ["/Applications/MarkText.app/Contents/MacOS/MarkText"],
+    linux: ["/usr/bin/marktext", "/usr/local/bin/marktext", "/snap/bin/marktext"],
+  },
+};
+
+// WSL 场景下检测 Windows 上的应用
+function detectAppPathWsl(appName: string): string | undefined {
+  const candidates: string[] = [];
+  const windir = process.env.WINDIR;
+  if (windir) {
+    const driveLetter = windir.charAt(0).toLowerCase();
+    const winUsersBase = `/mnt/${driveLetter}/Users`;
+    try {
+      const users = fs.readdirSync(winUsersBase);
+      for (const u of users) {
+        if (u === "Public" || u === "Default" || u === "Default User" || u === "All Users" || u.startsWith(".")) {
+          continue;
+        }
+        candidates.push(path.join(winUsersBase, u, "AppData", "Local", "Programs", appName, `${appName}.exe`));
+      }
+    } catch {
+      // ignore
+    }
+  }
+  for (const drive of ["c", "d"]) {
+    candidates.push(`/mnt/${drive}/Program Files/${appName}/${appName}.exe`);
+    candidates.push(`/mnt/${drive}/Program Files (x86)/${appName}/${appName}.exe`);
+  }
+  for (const candidate of candidates) {
+    try {
+      if (fs.existsSync(candidate)) {
+        return candidate;
+      }
+    } catch {
+      // ignore
+    }
+  }
+  return undefined;
+}
+
+// 在已知映射中查找应用路径，找不到则尝试将 app 当作可执行文件路径
+function resolveAppPath(appName: string): string | undefined {
+  if (isWsl()) {
+    return detectAppPathWsl(appName);
+  }
+
+  const platform = os.platform() as string;
+  const known = APP_PATHS[appName];
+  if (known && known[platform]) {
+    for (const candidate of known[platform]) {
+      try {
+        if (fs.existsSync(candidate)) {
+          return candidate;
+        }
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  // 如果 appName 本身就是绝对路径，直接返回
+  if (path.isAbsolute(appName)) {
+    try {
+      if (fs.existsSync(appName)) {
+        return appName;
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  return undefined;
+}
+
+// ============ 核心打开逻辑 ============
+
+async function openWithApp(filePath: string, rule: Rule): Promise<void> {
   if (isRemoteContainer()) {
     vscode.window.showErrorMessage(
-      "Open in Typora is not supported in remote containers or SSH sessions. It only works locally or via WSL."
+      "Open in External App is not supported in remote containers or SSH sessions."
     );
     return;
   }
 
-  const typoraPath = getTyporaPath();
+  const appPath = resolveAppPath(rule.app);
 
-  if (!typoraPath) {
+  if (!appPath) {
     const openSettings = "Open Settings";
     const choice = await vscode.window.showErrorMessage(
-      "Typora executable not found. Please set 'openInTypora.executablePath' in settings.",
+      `Application '${rule.app}' not found. Please set the correct path in 'openExternal.rules'.`,
       openSettings
     );
     if (choice === openSettings) {
-      vscode.commands.executeCommand("workbench.action.openSettings", "openInTypora.executablePath");
+      vscode.commands.executeCommand("workbench.action.openSettings", "openExternal.rules");
     }
     return;
   }
 
-  // WSL 场景：将 Linux 路径转为 Windows 路径，通过 cmd.exe start 启动 Typora
+  // WSL: 转换路径后通过 cmd.exe 启动 Windows 应用
   if (isWsl()) {
     const winPath = await wslToWindowsPath(filePath);
-    const winTyporaPath = await wslToWindowsPath(typoraPath);
+    const winAppPath = await wslToWindowsPath(appPath);
     return new Promise((resolve, reject) => {
-      execFile("cmd.exe", ["/c", "start", "", winTyporaPath, winPath], (error) => {
+      execFile("cmd.exe", ["/c", "start", "", winAppPath, winPath], (error) => {
         if (error) {
-          vscode.window.showErrorMessage(`Failed to open Typora: ${error.message}`);
+          vscode.window.showErrorMessage(`Failed to open ${rule.app}: ${error.message}`);
           reject(error);
         } else {
           resolve();
@@ -195,11 +218,11 @@ async function openInTypora(filePath: string): Promise<void> {
     });
   }
 
-  // 本地场景：直接启动 Typora 进程
+  // 本地: 直接启动应用
   return new Promise((resolve, reject) => {
-    execFile(typoraPath, [filePath], (error) => {
+    execFile(appPath, [filePath], (error) => {
       if (error) {
-        vscode.window.showErrorMessage(`Failed to open Typora: ${error.message}`);
+        vscode.window.showErrorMessage(`Failed to open ${rule.app}: ${error.message}`);
         reject(error);
       } else {
         resolve();
@@ -208,21 +231,20 @@ async function openInTypora(filePath: string): Promise<void> {
   });
 }
 
-/**
- * 插件入口：注册 openInTypora.open 命令
- * 支持从命令面板调用，也支持从编辑器标题栏按钮调用（传入 uri 参数）
- */
-export function activate(context: vscode.ExtensionContext): void {
-  const disposable = vscode.commands.registerCommand("openInTypora.open", async (uri?: vscode.Uri) => {
-    let filePath: string | undefined;
+// ============ 插件入口 ============
 
-    // 优先使用传入的 uri（标题栏按钮场景），否则取当前活动编辑器的文件路径
+export function activate(context: vscode.ExtensionContext): void {
+  const disposable = vscode.commands.registerCommand("openExternal.open", async (uri?: vscode.Uri) => {
+    let filePath: string | undefined;
+    let languageId: string | undefined;
+
     if (uri && uri.fsPath) {
       filePath = uri.fsPath;
     } else {
       const activeEditor = vscode.window.activeTextEditor;
       if (activeEditor) {
         filePath = activeEditor.document.uri.fsPath;
+        languageId = activeEditor.document.languageId;
       }
     }
 
@@ -231,12 +253,20 @@ export function activate(context: vscode.ExtensionContext): void {
       return;
     }
 
-    if (!filePath.toLowerCase().endsWith(".md")) {
-      vscode.window.showWarningMessage("Current file is not a Markdown file.");
+    const rule = matchRule(filePath, languageId);
+    if (!rule) {
+      const openSettings = "Open Settings";
+      const choice = await vscode.window.showWarningMessage(
+        `No external app rule matched for this file. Configure rules in settings.`,
+        openSettings
+      );
+      if (choice === openSettings) {
+        vscode.commands.executeCommand("workbench.action.openSettings", "openExternal.rules");
+      }
       return;
     }
 
-    await openInTypora(filePath);
+    await openWithApp(filePath, rule);
   });
 
   context.subscriptions.push(disposable);
