@@ -4,6 +4,8 @@
   <img src="images/icon.png" width="128" height="128" alt="Open External Logo">
   <br><br>
   <em>Open any file with an external application — right from VSCode</em>
+  <br><br>
+  English | <a href="README.zh-CN.md">中文</a>
 </div>
 
 <br>
