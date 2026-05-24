@@ -12,6 +12,12 @@
 
 A VSCode extension that lets you open any file with an external application. Configure rules to map file types to your preferred apps — [Typora](https://typora.io), Obsidian, Photoshop, or anything else.
 
+## Preview
+
+<div align="center">
+  <img src="images/sample_represation.png" alt="Usage screenshot" width="600">
+</div>
+
 ## Features
 
 - **Flexible rules**: Map files by VSCode language ID, file extension, or glob pattern to any external app.

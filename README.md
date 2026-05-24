@@ -12,6 +12,12 @@
 
 一个 VSCode 扩展，让你可以用外部应用程序打开任何文件。通过配置规则，将文件类型映射到你喜欢的应用——[Typora](https://typora.io)、Obsidian、Photoshop 或任何其他应用。
 
+## 效果预览
+
+<div align="center">
+  <img src="images/sample_represation.png" alt="使用效果截图" width="600">
+</div>
+
 ## 特性
 
 - **灵活的规则**：通过 VSCode 语言 ID、文件扩展名或 glob 模式映射文件到外部应用
