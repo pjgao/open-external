@@ -148,6 +148,8 @@ const WSL_EXE_NAMES: Record<string, string[]> = {
   PowerPoint: ["POWERPNT.EXE"],
   Excel: ["EXCEL.EXE"],
   Drawio: ["draw.io.exe"],
+  GIMP: ["gimp-2.10.exe", "gimp.exe"],
+  Inkscape: ["inkscape.exe"],
 };
 
 // 已知应用的默认安装路径映射
@@ -264,6 +266,22 @@ const APP_PATHS: Record<string, Record<string, string[]>> = {
     ],
     darwin: ["/Applications/VLC.app/Contents/MacOS/VLC"],
     linux: ["/usr/bin/vlc", "/usr/local/bin/vlc", "/snap/bin/vlc"],
+  },
+  GIMP: {
+    win32: [
+      path.join(process.env.ProgramFiles || "", "GIMP 2", "bin", "gimp-2.10.exe"),
+      path.join(process.env["ProgramFiles(x86)"] || "", "GIMP 2", "bin", "gimp-2.10.exe"),
+    ],
+    darwin: ["/Applications/GIMP.app/Contents/MacOS/gimp"],
+    linux: ["/usr/bin/gimp", "/usr/local/bin/gimp", "/snap/bin/gimp"],
+  },
+  Inkscape: {
+    win32: [
+      path.join(process.env.ProgramFiles || "", "Inkscape", "bin", "inkscape.exe"),
+      path.join(process.env["ProgramFiles(x86)"] || "", "Inkscape", "inkscape.exe"),
+    ],
+    darwin: ["/Applications/Inkscape.app/Contents/MacOS/inkscape"],
+    linux: ["/usr/bin/inkscape", "/usr/local/bin/inkscape", "/snap/bin/inkscape"],
   },
   Preview: {
     darwin: ["/System/Applications/Preview.app/Contents/MacOS/Preview"],
@@ -416,6 +434,15 @@ function resolveAppPath(appName: string): string | undefined {
   return undefined;
 }
 
+// Office 应用找不到时的降级映射
+const APP_FALLBACKS: Record<string, string[]> = {
+  Word: ["WPS"],
+  PowerPoint: ["WPS"],
+  Excel: ["WPS"],
+  Photoshop: ["GIMP"],
+  Illustrator: ["Inkscape"],
+};
+
 // ============ 核心打开逻辑 ============
 
 async function openWithApp(filePath: string, rule: Rule): Promise<void> {
@@ -426,7 +453,22 @@ async function openWithApp(filePath: string, rule: Rule): Promise<void> {
     return;
   }
 
-  const appPath = resolveAppPath(rule.app);
+  let appPath = resolveAppPath(rule.app);
+  let resolvedApp = rule.app;
+
+  // 主应用未找到，尝试降级到 fallback 应用
+  if (!appPath) {
+    const fallbacks = APP_FALLBACKS[rule.app];
+    if (fallbacks) {
+      for (const fallback of fallbacks) {
+        appPath = resolveAppPath(fallback);
+        if (appPath) {
+          resolvedApp = fallback;
+          break;
+        }
+      }
+    }
+  }
 
   if (!appPath) {
     const openSettings = "Open Settings";
@@ -440,6 +482,11 @@ async function openWithApp(filePath: string, rule: Rule): Promise<void> {
     return;
   }
 
+  // 降级时提示用户
+  if (resolvedApp !== rule.app) {
+    vscode.window.showInformationMessage(`'${rule.app}' not found, using '${resolvedApp}' instead.`);
+  }
+
   // WSL: 转换路径后通过 cmd.exe 启动 Windows 应用
   if (isWsl()) {
     const winPath = await wslToWindowsPath(filePath);
@@ -447,7 +494,7 @@ async function openWithApp(filePath: string, rule: Rule): Promise<void> {
     return new Promise((resolve, reject) => {
       execFile("cmd.exe", ["/c", "start", "", winAppPath, winPath], (error) => {
         if (error) {
-          vscode.window.showErrorMessage(`Failed to open ${rule.app}: ${error.message}`);
+          vscode.window.showErrorMessage(`Failed to open ${resolvedApp}: ${error.message}`);
           reject(error);
         } else {
           resolve();
@@ -460,7 +507,7 @@ async function openWithApp(filePath: string, rule: Rule): Promise<void> {
   return new Promise((resolve, reject) => {
     execFile(appPath, [filePath], (error) => {
       if (error) {
-        vscode.window.showErrorMessage(`Failed to open ${rule.app}: ${error.message}`);
+        vscode.window.showErrorMessage(`Failed to open ${resolvedApp}: ${error.message}`);
         reject(error);
       } else {
         resolve();
