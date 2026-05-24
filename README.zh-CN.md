@@ -5,7 +5,7 @@
   <br><br>
   <em>用外部应用打开任何文件 — 就在 VSCode 中</em>
   <br><br>
-  <a href="README.md">English</a> | 中文
+  <a href="README.en.md">English</a> | 中文
 </div>
 
 <br>

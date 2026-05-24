@@ -3,35 +3,36 @@
 <div align="center">
   <img src="images/icon.png" width="128" height="128" alt="Open External Logo">
   <br><br>
-  <em>Open any file with an external application — right from VSCode</em>
+  <em>用外部应用打开任何文件 — 就在 VSCode 中</em>
   <br><br>
-  English | <a href="README.zh-CN.md">中文</a>
+  <a href="README.en.md">English</a> | 中文
 </div>
 
 <br>
 
-A VSCode extension that lets you open any file with an external application. Configure rules to map file types to your preferred apps — [Typora](https://typora.io), Obsidian, Photoshop, or anything else.
+一个 VSCode 扩展，让你可以用外部应用程序打开任何文件。通过配置规则，将文件类型映射到你喜欢的应用——[Typora](https://typora.io)、Obsidian、Photoshop 或任何其他应用。
 
-## Features
+## 特性
 
-- **Flexible rules**: Map files by VSCode language ID, file extension, or glob pattern to any external app.
-- **Multiple entry points**: Command Palette, editor title bar button, and explorer context menu.
-- **Auto-detect apps**: Automatically finds known apps (Typora, Obsidian, MarkText) on Windows, macOS, Linux, and WSL.
-- **WSL support**: Seamlessly converts paths and launches Windows apps via `cmd.exe`.
-- **Fallback to path**: If an app name isn't recognized, use an absolute path as the `app` value.
+- **灵活的规则**：通过 VSCode 语言 ID、文件扩展名或 glob 模式映射文件到外部应用
+- **多种触发方式**：命令面板、编辑器标题栏按钮、资源管理器右键菜单
+- **自动检测应用**：自动在 Windows、macOS、Linux 和 WSL 上查找已知应用（Typora、WPS、Office 等）
+- **WSL 支持**：自动转换路径，通过 `cmd.exe` 启动 Windows 应用
+- **应用降级**：主应用未安装时自动降级到替代应用（如 PowerPoint → WPS）
+- **自定义路径**：如果应用名未被识别，可直接使用绝对路径
 
-## Usage
+## 使用方式
 
-1. Open a file in VSCode.
-2. Either:
-   - Click the **Open External** button in the editor title bar, **or**
-   - Right-click a file in the explorer → **"Open in External App"**, **or**
-   - Press `Ctrl+Shift+P` → type **"Open in External App"** → press Enter.
-3. The file opens in the matched external application.
+1. 在 VSCode 中打开一个文件
+2. 通过以下方式触发：
+   - 点击编辑器标题栏的 **Open External** 按钮，**或**
+   - 在资源管理器中右键文件 → **"Open in External App"**，**或**
+   - 按 `Ctrl+Shift+P` → 输入 **"Open in External App"** → 回车
+3. 文件将在匹配的外部应用中打开
 
-## Configuration
+## 配置
 
-Configure rules in `settings.json`:
+在 `settings.json` 中配置规则：
 
 ```json
 "openExternal.rules": [
@@ -42,83 +43,95 @@ Configure rules in `settings.json`:
 ]
 ```
 
-### Rule properties
+### 规则属性
 
-| Property     | Description                                         | Required |
-|--------------|-----------------------------------------------------|----------|
-| `language`   | VSCode language identifier (e.g. `markdown`)        | No*      |
-| `extension`  | File extension (e.g. `.psd`)                        | No*      |
-| `pattern`    | Glob pattern for filename matching (e.g. `*.design.ts`) | No*  |
-| `app`        | App name (e.g. `Typora`) or absolute path to executable | Yes   |
+| 属性        | 说明                                               | 必填 |
+|-------------|---------------------------------------------------|------|
+| `language`  | VSCode 语言标识符（如 `markdown`）                 | 否*  |
+| `extension` | 文件扩展名（如 `.psd`）                            | 否*  |
+| `pattern`   | 文件名 glob 匹配模式（如 `*.design.ts`）           | 否*  |
+| `app`       | 应用名称（如 `Typora`）或可执行文件的绝对路径       | 是   |
 
-\* At least one of `language`, `extension`, or `pattern` should be specified. Rules are matched in order; the first match wins.
+\* `language`、`extension`、`pattern` 至少需要指定一个。规则按顺序匹配，第一个匹配的规则生效。
 
-### Other settings
+### 其他设置
 
-| Setting | Description | Default |
-|---------|-------------|---------|
-| `openExternal.showEditorTitleButton` | Show the button in the editor title bar | `true` |
+| 设置 | 说明 | 默认值 |
+|------|------|--------|
+| `openExternal.showEditorTitleButton` | 在编辑器标题栏显示按钮 | `true` |
 
-### Known app auto-detect
+### 应用自动检测
 
-The following app names are automatically resolved to their default install paths:
+以下应用名称会自动解析到默认安装路径：
 
-| App          | Windows | macOS | Linux | WSL |
-|--------------|---------|-------|-------|-----|
-| Typora       | ✓ | ✓ | ✓ | ✓ |
-| Obsidian     | ✓ | ✓ | ✓ | ✓ |
-| MarkText     | ✓ | ✓ | ✓ | ✓ |
-| WPS          | ✓ | ✓ | ✓ | ✓ |
-| Word         | ✓ | ✓ | — | ✓ |
-| PowerPoint   | ✓ | ✓ | — | ✓ |
-| Excel        | ✓ | ✓ | — | ✓ |
-| Drawio       | ✓ | ✓ | ✓ | ✓ |
-| XMind        | ✓ | ✓ | ✓ | ✓ |
-| Photoshop    | ✓ | ✓ | — | ✓ |
-| Illustrator  | ✓ | ✓ | — | ✓ |
-| VLC          | ✓ | ✓ | ✓ | ✓ |
-| Preview      | — | ✓ | — | — |
+| 应用          | Windows | macOS | Linux | WSL |
+|---------------|---------|-------|-------|-----|
+| Typora        | ✓ | ✓ | ✓ | ✓ |
+| Obsidian      | ✓ | ✓ | ✓ | ✓ |
+| MarkText      | ✓ | ✓ | ✓ | ✓ |
+| WPS           | ✓ | ✓ | ✓ | ✓ |
+| Word          | ✓ | ✓ | — | ✓ |
+| PowerPoint    | ✓ | ✓ | — | ✓ |
+| Excel         | ✓ | ✓ | — | ✓ |
+| Drawio        | ✓ | ✓ | ✓ | ✓ |
+| XMind         | ✓ | ✓ | ✓ | ✓ |
+| Photoshop     | ✓ | ✓ | — | ✓ |
+| Illustrator   | ✓ | ✓ | — | ✓ |
+| VLC           | ✓ | ✓ | ✓ | ✓ |
+| Preview       | — | ✓ | — | — |
 
-For apps not in this list, use the absolute path to the executable as the `app` value.
+不在列表中的应用，请使用可执行文件的绝对路径作为 `app` 值。
 
-### Default rules
+### 应用降级
 
-The extension ships with these default rules (you can override or extend them in settings):
+当主应用未安装时，会自动尝试降级到替代应用：
 
-| File type        | Extension / Language | App          |
-|------------------|----------------------|--------------|
-| Markdown         | `language: markdown` | Typora       |
-| Draw.io          | `.drawio`, `.dio`    | Drawio       |
-| PowerPoint       | `.pptx`, `.ppt`      | PowerPoint   |
-| Word             | `.docx`, `.doc`      | Word         |
-| Excel            | `.xlsx`, `.xls`      | Excel        |
-| XMind            | `.xmind`             | XMind        |
-| Photoshop        | `.psd`               | Photoshop    |
-| Illustrator      | `.ai`                | Illustrator  |
+| 主应用       | 降级到     |
+|-------------|-----------|
+| Word        | WPS       |
+| PowerPoint  | WPS       |
+| Excel       | WPS       |
+| Photoshop   | GIMP      |
+| Illustrator | Inkscape  |
 
-## Limitations
+### 默认规则
 
-- Remote containers and SSH sessions are **not supported** (external apps are local GUI applications).
-- WSL is fully supported.
+扩展内置以下默认规则（可在设置中覆盖或扩展）：
 
-## Development
+| 文件类型     | 扩展名 / 语言标识       | 应用         |
+|-------------|------------------------|-------------|
+| Markdown    | `language: markdown`   | Typora      |
+| Draw.io     | `.drawio`, `.dio`      | Drawio      |
+| PowerPoint  | `.pptx`, `.ppt`        | PowerPoint  |
+| Word        | `.docx`, `.doc`        | Word        |
+| Excel       | `.xlsx`, `.xls`        | Excel       |
+| XMind       | `.xmind`               | XMind       |
+| Photoshop   | `.psd`                 | Photoshop   |
+| Illustrator | `.ai`                  | Illustrator |
+
+## 限制
+
+- 远程容器和 SSH 会话**不支持**（外部应用是本地 GUI 程序）
+- WSL 完全支持
+
+## 开发
 
 ```bash
-# Install dependencies
+# 安装依赖
 npm install
 
-# Compile
+# 编译
 npm run compile
 
-# Watch for changes
+# 监听变化
 npm run watch
 
-# Package as VSIX
+# 打包为 VSIX
 npx vsce package
 ```
 
-Press `F5` in VSCode to launch the Extension Development Host for testing.
+在 VSCode 中按 `F5` 启动扩展开发主机进行测试。
 
-## License
+## 许可证
 
 MIT
