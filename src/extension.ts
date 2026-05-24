@@ -87,7 +87,27 @@ function getRules(): Rule[] {
   return DEFAULT_RULES;
 }
 
+// 已知的 language → extension 映射，当 language 匹配不到时用 extension 兜底
+const LANGUAGE_EXTENSIONS: Record<string, string[]> = {
+  markdown: [".md", ".markdown", ".mdown", ".mkd", ".mkdn"],
+  python: [".py"],
+  javascript: [".js"],
+  typescript: [".ts"],
+  html: [".html", ".htm"],
+  css: [".css"],
+  json: [".json"],
+  xml: [".xml"],
+  yaml: [".yaml", ".yml"],
+  go: [".go"],
+  rust: [".rs"],
+  java: [".java"],
+  c: [".c"],
+  cpp: [".cpp", ".cc", ".cxx"],
+};
+
 // 根据文件路径和语言 ID 匹配规则，返回第一条匹配的规则
+// 匹配优先级：language > extension > pattern
+// 当 language 规则匹配不到时，也会用 language 对应的 extension 进行二次匹配
 function matchRule(filePath: string, languageId: string | undefined): Rule | undefined {
   const rules = getRules();
   const fileName = path.basename(filePath);
@@ -97,9 +117,20 @@ function matchRule(filePath: string, languageId: string | undefined): Rule | und
     if (rule.language && languageId && rule.language === languageId) {
       return rule;
     }
+  }
+  for (const rule of rules) {
     if (rule.extension && ext === rule.extension.toLowerCase()) {
       return rule;
     }
+    // language 规则在 extension 也不匹配时，尝试用 language 对应的扩展名匹配
+    if (rule.language && !rule.extension) {
+      const exts = LANGUAGE_EXTENSIONS[rule.language];
+      if (exts && exts.some(e => e.toLowerCase() === ext)) {
+        return rule;
+      }
+    }
+  }
+  for (const rule of rules) {
     if (rule.pattern && simpleGlob(fileName, rule.pattern)) {
       return rule;
     }
