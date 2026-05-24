@@ -314,42 +314,80 @@ function findExeInDir(parentDir: string, exeName: string, maxDepth: number = 2):
 }
 
 // WSL 场景下检测 Windows 上的应用
-// 优先从 APP_PATHS 中获取候选路径（转换为 /mnt 路径），再补充通用路径
-// 对包含版本号子目录的应用（如 WPS），使用 findExeInDir 动态扫描
+// 在 WSL 中 Windows 环境变量不可用，需要直接扫描 /mnt/c 等目录
 function detectAppPathWsl(appName: string): string | undefined {
   const candidates: string[] = [];
-  const searchDirs: string[] = [];
 
-  // 从 APP_PATHS 中获取该应用的 win32 路径，将 Windows 盘符路径转为 WSL /mnt 路径
-  const known = APP_PATHS[appName];
-  if (known && known.win32) {
-    for (const winPath of known.win32) {
-      const mntPath = winPath.replace(/^([A-Za-z]):/, (_, drive) => `/mnt/${drive.toLowerCase()}`).replace(/\\/g, "/");
-      candidates.push(mntPath);
-    }
-  }
-
-  // 补充通用路径和搜索目录
-  const windir = process.env.WINDIR;
-  if (windir) {
-    const driveLetter = windir.charAt(0).toLowerCase();
-    const winUsersBase = `/mnt/${driveLetter}/Users`;
+  // 扫描所有 Windows 用户目录下的 AppData/Local 和 AppData/Roaming
+  for (const drive of ["c", "d"]) {
+    const usersBase = `/mnt/${drive}/Users`;
     try {
-      const users = fs.readdirSync(winUsersBase);
+      const users = fs.readdirSync(usersBase);
       for (const u of users) {
         if (u === "Public" || u === "Default" || u === "Default User" || u === "All Users" || u.startsWith(".")) {
           continue;
         }
-        candidates.push(path.join(winUsersBase, u, "AppData", "Local", "Programs", appName, `${appName}.exe`));
+        // 通用 Programs 路径
+        candidates.push(path.join(usersBase, u, "AppData", "Local", "Programs", appName, `${appName}.exe`));
+        // WPS 特殊路径：Kingsoft/WPS Office/ksolaunch.exe
+        if (appName === "WPS") {
+          candidates.push(path.join(usersBase, u, "AppData", "Local", "Kingsoft", "WPS Office", "ksolaunch.exe"));
+        }
       }
     } catch {
       // ignore
     }
-  }
-
-  for (const drive of ["c", "d"]) {
+    // Program Files
     candidates.push(`/mnt/${drive}/Program Files/${appName}/${appName}.exe`);
     candidates.push(`/mnt/${drive}/Program Files (x86)/${appName}/${appName}.exe`);
+    // Office 特殊路径
+    if (appName === "Word") {
+      candidates.push(`/mnt/${drive}/Program Files/Microsoft Office/root/Office16/WINWORD.EXE`);
+      candidates.push(`/mnt/${drive}/Program Files/Microsoft Office/Office16/WINWORD.EXE`);
+      candidates.push(`/mnt/${drive}/Program Files/Microsoft Office/root/Office15/WINWORD.EXE`);
+    }
+    if (appName === "PowerPoint") {
+      candidates.push(`/mnt/${drive}/Program Files/Microsoft Office/root/Office16/POWERPNT.EXE`);
+      candidates.push(`/mnt/${drive}/Program Files/Microsoft Office/Office16/POWERPNT.EXE`);
+      candidates.push(`/mnt/${drive}/Program Files/Microsoft Office/root/Office15/POWERPNT.EXE`);
+    }
+    if (appName === "Excel") {
+      candidates.push(`/mnt/${drive}/Program Files/Microsoft Office/root/Office16/EXCEL.EXE`);
+      candidates.push(`/mnt/${drive}/Program Files/Microsoft Office/Office16/EXCEL.EXE`);
+      candidates.push(`/mnt/${drive}/Program Files/Microsoft Office/root/Office15/EXCEL.EXE`);
+    }
+    // Draw.io 特殊路径
+    if (appName === "Drawio") {
+      candidates.push(`/mnt/${drive}/Program Files/draw.io/draw.io.exe`);
+      candidates.push(`/mnt/${drive}/Program Files (x86)/draw.io/draw.io.exe`);
+    }
+    // WPS Program Files
+    if (appName === "WPS") {
+      candidates.push(`/mnt/${drive}/Program Files/Kingsoft/WPS Office/ksolaunch.exe`);
+      candidates.push(`/mnt/${drive}/Program Files (x86)/Kingsoft/WPS Office/ksolaunch.exe`);
+    }
+    // Adobe
+    if (appName === "Photoshop") {
+      candidates.push(`/mnt/${drive}/Program Files/Adobe/Adobe Photoshop 2024/Photoshop.exe`);
+      candidates.push(`/mnt/${drive}/Program Files/Adobe/Adobe Photoshop 2023/Photoshop.exe`);
+    }
+    if (appName === "Illustrator") {
+      candidates.push(`/mnt/${drive}/Program Files/Adobe/Adobe Illustrator 2024/Support Files/Contents/Windows/Illustrator.exe`);
+    }
+    // VLC
+    if (appName === "VLC") {
+      candidates.push(`/mnt/${drive}/Program Files/VideoLAN/VLC/vlc.exe`);
+      candidates.push(`/mnt/${drive}/Program Files (x86)/VideoLAN/VLC/vlc.exe`);
+    }
+    // GIMP
+    if (appName === "GIMP") {
+      candidates.push(`/mnt/${drive}/Program Files/GIMP 2/bin/gimp-2.10.exe`);
+    }
+    // Inkscape
+    if (appName === "Inkscape") {
+      candidates.push(`/mnt/${drive}/Program Files/Inkscape/bin/inkscape.exe`);
+      candidates.push(`/mnt/${drive}/Program Files (x86)/Inkscape/inkscape.exe`);
+    }
   }
 
   // 先尝试精确路径
@@ -363,13 +401,33 @@ function detectAppPathWsl(appName: string): string | undefined {
     }
   }
 
-  // 精确路径找不到时，尝试在父目录中动态搜索可执行文件
+  // 精确路径找不到时，在父目录中动态搜索可执行文件
   const exeNames = WSL_EXE_NAMES[appName] || [`${appName.toLowerCase()}.exe`];
   const parentDirs = new Set<string>();
   for (const candidate of candidates) {
     parentDirs.add(path.dirname(candidate));
-    // 也加入上一级目录（如 Kingsoft/WPS Office 的父目录 Kingsoft）
     parentDirs.add(path.dirname(path.dirname(candidate)));
+    parentDirs.add(path.dirname(path.dirname(path.dirname(candidate))));
+  }
+  // 额外添加已知应用父目录
+  for (const drive of ["c", "d"]) {
+    const usersBase = `/mnt/${drive}/Users`;
+    try {
+      const users = fs.readdirSync(usersBase);
+      for (const u of users) {
+        if (u === "Public" || u === "Default" || u === "Default User" || u === "All Users" || u.startsWith(".")) {
+          continue;
+        }
+        parentDirs.add(path.join(usersBase, u, "AppData", "Local", "Programs"));
+        if (appName === "WPS") {
+          parentDirs.add(path.join(usersBase, u, "AppData", "Local", "Kingsoft"));
+        }
+      }
+    } catch {
+      // ignore
+    }
+    parentDirs.add(`/mnt/${drive}/Program Files`);
+    parentDirs.add(`/mnt/${drive}/Program Files (x86)`);
   }
 
   for (const dir of parentDirs) {
